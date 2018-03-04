@@ -29,7 +29,7 @@ case class AssetsApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPoo
 
   override lazy val route =
     pathPrefix("assets") {
-      balance ~ balances ~ issue ~ reissue ~ burnRoute ~ transfer ~ massTransfer ~ signOrder ~ balanceDistribution
+      balance ~ balances ~ issue ~ reissue ~ burnRoute ~ transfer ~ germtransfer ~ massTransfer ~ signOrder ~ balanceDistribution
     }
 
   @Path("/balance/{address}/{assetId}")
@@ -215,4 +215,23 @@ case class AssetsApiRoute(settings: RestAPISettings, wallet: Wallet, utx: UtxPoo
   def signOrder: Route = processRequest("order", (order: Order) => {
     wallet.privateKeyAccount(order.senderPublicKey).map(pk => Order.sign(order, pk))
   })
+  /*Germ*/
+  @Path("/germ-transfer")
+  @ApiOperation(value = "Germ Transfer asset",
+    notes = "Germ Transfer asset to new address",
+    httpMethod = "POST",
+    produces = "application/json",
+    consumes = "application/json")
+  @ApiImplicitParams(Array(
+    new ApiImplicitParam(
+      name = "body",
+      value = "Json with data",
+      required = true,
+      paramType = "body",
+      dataType = "scorex.api.http.assets.GermTransferRequest",
+      defaultValue = "{\"sender\":\"3Mn6xomsZZepJj1GL1QaW6CaCJAq8B3oPef\",\"recipient\":\"3Mciuup51AxRrpSz7XhutnQYTkNT9691HAk\",\"assetId\":null,\"amount\":5813874260609385500,\"feeAssetId\":\"3Z7T9SwMbcBuZgcn3mGu7MMp619CTgSWBT7wvEkPwYXGnoYzLeTyh3EqZu1ibUhbUHAsGK5tdv9vJL9pk4fzv9Gc\",\"fee\":1579331567487095949,\"timestamp\":4231642878298810008}"
+    )
+  ))
+  def germtransfer: Route =
+    processRequest("germ-transfer", (t: GermTransferRequest) => doBroadcast(TransactionFactory.germTransferAsset(t, wallet, time)))
 }

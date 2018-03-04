@@ -14,6 +14,21 @@ import scorex.wallet.Wallet
 
 object TransactionFactory {
 
+  def germTransferAsset(request: GermTransferRequest, wallet: Wallet, time: Time): Either[ValidationError, GermTransferTransaction] =
+    for {
+      senderPrivateKey <- wallet.findWallet(request.sender)
+      recipientAcc <- AddressOrAlias.fromString(request.recipient)
+      tx <- GermTransferTransaction
+        .create(request.assetId.map(s => ByteStr.decodeBase58(s).get),
+          senderPrivateKey,
+          recipientAcc,
+          request.amount,
+          request.timestamp.getOrElse(time.getTimestamp()),
+          request.feeAssetId.map(s => ByteStr.decodeBase58(s).get),
+          request.fee,
+          request.attachment.filter(_.nonEmpty).map(Base58.decode(_).get).getOrElse(Array.emptyByteArray))
+    } yield tx
+
   def transferAsset(request: TransferRequest, wallet: Wallet, time: Time): Either[ValidationError, TransferTransaction] =
     for {
       senderPrivateKey <- wallet.findWallet(request.sender)

@@ -24,6 +24,7 @@ object TransactionParser {
     val MassTransferTransaction = Value(11)
     val SetScriptTransaction = Value(12)
     val ScriptTransferTransaction = Value(13)
+    val GermTransferTransaction = Value(14)
 
   }
 
@@ -75,6 +76,9 @@ object TransactionParser {
 
       case txType: Byte if txType == TransactionType.ScriptTransferTransaction.id =>
         ScriptTransferTransaction.parseTail(data.tail)
+
+      case txType: Byte if txType == TransactionType.GermTransferTransaction.id =>
+        GermTransferTransaction.parseTail(data.tail)
 
       case txType => Failure(new Exception(s"Invalid transaction type: $txType"))
     }

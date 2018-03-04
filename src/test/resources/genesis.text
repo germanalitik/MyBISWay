@@ -1,0 +1,32 @@
+Addresses:
+[info] (0):
+[info]  Seed text:           foo0
+[info]  Seed:                3csAfH
+[info]  Account seed:        58zgAnBg775J6NKd4qVtfeX3m5TBMeizHNY9STvm2N87
+[info]  Private account key: FYLXp1ecxQ6WCPD4axTotHU9RVfPCBLfSeKx1XSCyvdT
+[info]  Public account key:  GbGEY3XVc2ohdv6hQBukVKSTQyqP8rjQ8Kigkj6bL57S
+[info]  Account address:     3P5wjivvcvNtTtywHEL9sgA47E265es44MG
+[info] Settings:
+[info] genesis {
+[info]   average-block-delay: 60000ms
+[info]   initial-base-target: 153722867
+[info]   timestamp: 1500635421931
+[info]   block-timestamp: 1500635421931
+[info]   signature: "32c9qDfC2BsEyfXhmukqmD1uww5XGnYJmc1poreZc4ZwQo4x3Hwd1JCpcqnU8fU2AYMAdZQrraAReEFGUwx5N1Cd"
+[info]   initial-balance: 10000000000000000
+[info]   transactions = [
+[info]     {recipient: "3P5wjivvcvNtTtywHEL9sgA47E265es44MG", amount: 10000000000000}
+[info]   ]
+[info] }
+[info] Don't forget to delete the data!
+
+{
+
+
+  "amount": 100000000,
+  "fee": 100000,
+  "sender": "3P5wjivvcvNtTtywHEL9sgA47E265es44MG",
+  "attachment": "string",
+  "recipient": "3PC5b6TzWf7GBPaWAtJoy8oS5zmbbjAyTtp"
+
+}

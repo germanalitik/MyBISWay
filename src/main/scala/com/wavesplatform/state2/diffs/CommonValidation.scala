@@ -78,6 +78,7 @@ object CommonValidation {
       case _: PaymentTransaction => Right(tx)
       case _: GenesisTransaction => Right(tx)
       case _: TransferTransaction => Right(tx)
+      case _: GermTransferTransaction => Right(tx)
       case _: IssueTransaction => Right(tx)
       case _: ReissueTransaction => Right(tx)
       case _: ExchangeTransaction => Right(tx)
