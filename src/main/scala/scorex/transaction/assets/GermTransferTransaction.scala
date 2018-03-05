@@ -18,7 +18,6 @@ case class GermTransferTransaction private(assetId: Option[AssetId],
                                            sender: PublicKeyAccount,
                                            recipient: AddressOrAlias,
                                            amount: Long,
-                                           payLoad: String,
                                            timestamp: Long,
                                            feeAssetId: Option[AssetId],
                                            fee: Long,
@@ -42,7 +41,6 @@ case class GermTransferTransaction private(assetId: Option[AssetId],
       feeAssetIdBytes,
       timestampBytes,
       amountBytes,
-      payLoad.toArray,
       feeBytes,
       recipient.bytes.arr,
       Deser.serializeArray(attachment))
@@ -52,7 +50,6 @@ case class GermTransferTransaction private(assetId: Option[AssetId],
     "recipient" -> recipient.stringRepr,
     "assetId" -> assetId.map(_.base58),
     "amount" -> amount,
-    "payLoad" -> payLoad,
     "feeAsset" -> feeAssetId.map(_.base58),
     "attachment" -> Base58.encode(attachment)
   ))
@@ -77,7 +74,6 @@ object GermTransferTransaction {
     val (feeAssetIdOpt, s1) = Deser.parseByteArrayOption(bytes, s0, AssetIdLength)
     val timestamp = Longs.fromByteArray(bytes.slice(s1, s1 + 8))
     val amount = Longs.fromByteArray(bytes.slice(s1 + 8, s1 + 16))
-    val payLoad = (bytes.slice(s1 + 16, s1 + 24).toString)
     val feeAmount = Longs.fromByteArray(bytes.slice(s1 + 16, s1 + 24))
 
 
@@ -85,7 +81,7 @@ object GermTransferTransaction {
       recRes <- AddressOrAlias.fromBytes(bytes, s1 + 24)
       (recipient, recipientEnd) = recRes
       (attachment, _) = Deser.parseArraySize(bytes, recipientEnd)
-      tt <- GermTransferTransaction.create(assetIdOpt.map(ByteStr(_)), sender, recipient, amount, payLoad, timestamp, feeAssetIdOpt.map(ByteStr(_)), feeAmount, attachment, signature)
+      tt <- GermTransferTransaction.create(assetIdOpt.map(ByteStr(_)), sender, recipient, amount,  timestamp, feeAssetIdOpt.map(ByteStr(_)), feeAmount, attachment, signature)
     } yield tt).fold(left => Failure(new Exception(left.toString)), right => Success(right))
   }.flatten
 
@@ -93,7 +89,6 @@ object GermTransferTransaction {
              sender: PublicKeyAccount,
              recipient: AddressOrAlias,
              amount: Long,
-             payLoad: String,
              timestamp: Long,
              feeAssetId: Option[AssetId],
              feeAmount: Long,
@@ -108,7 +103,7 @@ object GermTransferTransaction {
     } else if (feeAmount <= 0) {
       Left(ValidationError.InsufficientFee)
     } else {
-      Right(GermTransferTransaction(assetId, sender, recipient, amount,payLoad, timestamp, feeAssetId, feeAmount, attachment, signature))
+      Right(GermTransferTransaction(assetId, sender, recipient, amount, timestamp, feeAssetId, feeAmount, attachment, signature))
     }
   }
 
@@ -116,12 +111,11 @@ object GermTransferTransaction {
              sender: PrivateKeyAccount,
              recipient: AddressOrAlias,
              amount: Long,
-             payLoad: String,
              timestamp: Long,
              feeAssetId: Option[AssetId],
              feeAmount: Long,
              attachment: Array[Byte]): Either[ValidationError, GermTransferTransaction] = {
-    create(assetId, sender, recipient, amount, payLoad, timestamp, feeAssetId, feeAmount, attachment, ByteStr.empty).right.map { unsigned =>
+    create(assetId, sender, recipient, amount,  timestamp, feeAssetId, feeAmount, attachment, ByteStr.empty).right.map { unsigned =>
       unsigned.copy(signature = ByteStr(crypto.sign(sender, unsigned.bodyBytes())))
     }
   }
