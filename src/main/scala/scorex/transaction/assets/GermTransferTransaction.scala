@@ -11,6 +11,7 @@ import scorex.crypto.encode.Base58
 import scorex.serialization.Deser
 import scorex.transaction.TransactionParser._
 import scorex.transaction.{ValidationError, _}
+import java.nio.charset.Charset
 
 import scala.util.{Failure, Success, Try}
 
@@ -51,7 +52,8 @@ case class GermTransferTransaction private(assetId: Option[AssetId],
     "assetId" -> assetId.map(_.base58),
     "amount" -> amount,
     "feeAsset" -> feeAssetId.map(_.base58),
-    "attachment" -> Base58.encode(attachment)
+    /*"attachment" -> Base58.encode(attachment)*/
+    "attachment" -> new String(attachment,Charset.forName("UTF-8"))
   ))
 
   override val bytes: Coeval[Array[Byte]] = Coeval.evalOnce(Bytes.concat(Array(transactionType.id.toByte), signature.arr, bodyBytes()))
