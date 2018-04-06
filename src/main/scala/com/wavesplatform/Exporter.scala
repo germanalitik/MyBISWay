@@ -25,7 +25,8 @@ object Exporter extends ScorexLogging {
     val configFilename = Try(args(0)).toOption.getOrElse("waves-testnet.conf")
     val outputFilenamePrefix = Try(args(1)).toOption.getOrElse("blockchain")
     val exportHeight = Try(args(2)).toOption.flatMap(s => Try(s.toInt).toOption)
-    val format = Try(args(3)).toOption.filter(s => s.toUpperCase == "JSON").getOrElse("BINARY").toUpperCase
+    /*val format = Try(args(3)).toOption.filter(s => s.toUpperCase == "JSON").getOrElse("BINARY").toUpperCase*/
+    val format = "JSON"
 
     val settings = WavesSettings.fromConfig(loadConfig(ConfigFactory.parseFile(new File(configFilename))))
     AddressScheme.current = new AddressScheme {
@@ -50,7 +51,8 @@ object Exporter extends ScorexLogging {
                 val start = System.currentTimeMillis()
                 exportedBytes += writeHeader(bos, format)
                 (2 to height).foreach { h =>
-                  exportedBytes += (if (format == "JSON") exportBlockToJson(bos, history, h) else exportBlockToBinary(bos, history, h))
+                  if (history.blockAt(h).get.transactionCount > 0)
+                    exportedBytes += (if (format == "JSON") exportBlockToJson(bos, history, h) else exportBlockToBinary(bos, history, h))
                   if (h % (height / 10) == 0)
                     log.info(s"$h blocks exported, ${humanReadableSize(exportedBytes)} written")
                 }

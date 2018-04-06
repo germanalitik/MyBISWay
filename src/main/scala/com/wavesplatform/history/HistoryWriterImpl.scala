@@ -1,8 +1,11 @@
 package com.wavesplatform.history
 
+import java.io.{BufferedOutputStream, FileOutputStream, OutputStream}
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import com.google.common.primitives.{Ints, Shorts}
+import com.wavesplatform.Exporter.{createOutputStream, exportBlockToBinary, exportBlockToJson, log, writeFooter, writeHeader, writeString}
 import com.wavesplatform.db._
 import com.wavesplatform.features.{FeatureProvider, FeaturesProperties}
 import com.wavesplatform.settings.{FeaturesSettings, FunctionalitySettings}
@@ -17,7 +20,7 @@ import scorex.transaction._
 import scorex.utils.Synchronized.WriteLock
 import scorex.utils.{NTP, ScorexLogging, Time}
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadWriteLock,
                                 functionalitySettings: FunctionalitySettings, featuresSettings: FeaturesSettings, time: Time)
@@ -88,14 +91,69 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
         transactionsInBlockStats.record(block.transactionData.size)
 
         commit(b)
+        syncToLocalFile(block)
         log.trace(s"Full $block(id=${block.uniqueId} persisted")
 
         blockDiff
+
       }
       else {
         Left(GenericError(s"Parent ${block.reference} of block ${block.uniqueId} does not match last block ${this.lastBlock.map(_.uniqueId)}"))
       }
     }
+
+  private def syncToLocalFile(block: Block): Unit = {
+    val outputFilename = "bcsync"
+    val format = "JSON"
+
+    if (block.transactionCount > 0) {
+      log.info(s"$outputFilename НАЧИНАЕМ ЗАПИСЫВАТЬ")
+      createOutputStream(outputFilename) match {
+        case Success(output) =>
+          var exportedBytes = 0L
+          val bos = new BufferedOutputStream(output)
+          val start = System.currentTimeMillis()
+
+          exportedBytes += writeHeader(bos, format)
+          exportedBytes += exportBlockToJson(bos, block)
+          exportedBytes += writeFooter(bos, format)
+
+          val duration = System.currentTimeMillis() - start
+          bos.close()
+          output.close()
+        case Failure(ex) => log.error(s"Failed to create file '$outputFilename': $ex")
+      }
+      log.info(s"$outputFilename ЗАПИСАН ===========")
+    }
+  }
+
+  private def createOutputStream(filename: String): Try[FileOutputStream] =
+    Try {
+      new FileOutputStream(filename, true)
+    }
+
+  private def writeHeader(stream: OutputStream, format: String): Int =
+    if (format == "JSON") writeString(stream, "[\n") else 0
+
+  private def writeFooter(stream: OutputStream, format: String): Int =
+    if (format == "JSON") writeString(stream, "]\n") else 0
+
+  private def writeString(stream: OutputStream, str: String): Int = {
+    val bytes = str.getBytes(StandardCharsets.UTF_8)
+    stream.write(bytes)
+    bytes.length
+  }
+
+  private def exportBlockToJson(stream: OutputStream, block: Block): Int = {
+    val len = if (height != 2) {
+      val bytes = ",\n".getBytes(StandardCharsets.UTF_8)
+      stream.write(bytes)
+      bytes.length
+    } else 0
+      val bytes = block.json().toString().getBytes(StandardCharsets.UTF_8)
+      stream.write(bytes)
+      len + bytes.length
+  }
 
   private def allFeatures(): Seq[Short] = read { implicit lock =>
     get(FeaturesIndexKey).map(ShortSeqCodec.decode).map(_.explicitGet().value).getOrElse(Seq.empty[Short])
