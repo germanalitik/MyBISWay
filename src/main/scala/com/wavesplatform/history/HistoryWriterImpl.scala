@@ -19,6 +19,7 @@ import scorex.transaction.ValidationError.GenericError
 import scorex.transaction._
 import scorex.utils.Synchronized.WriteLock
 import scorex.utils.{NTP, ScorexLogging, Time}
+import java.sql.{Connection, DriverManager, ResultSet}
 
 import scala.util.{Failure, Success, Try}
 
@@ -103,8 +104,27 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
     }
 
   private def syncToLocalFile(block: Block): Unit = {
-    val outputFilename = "bcsync"
+    val outputFilename = "bcsync.txt"
     val format = "JSON"
+    val usePostgreSql = false
+
+    if (usePostgreSql) {
+      println("Postgres connector")
+      classOf[org.postgresql.Driver]
+      val con_str = "jdbc:postgresql://localhost:5432/BisChain?user=postgres&password=germ"
+      val conn = DriverManager.getConnection(con_str)
+      try {
+        val stm = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+
+        val rs = stm.executeQuery("SELECT * from Users")
+
+        while (rs.next) {
+          println(rs.getString("quote"))
+        }
+      } finally {
+        conn.close()
+      }
+    }
 
     if (block.transactionCount > 0) {
       log.info(s"$outputFilename НАЧИНАЕМ ЗАПИСЫВАТЬ")

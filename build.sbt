@@ -188,7 +188,8 @@ lazy val node = project.in(file("."))
       Dependencies.ficus ++
       Dependencies.scorex ++
       Dependencies.commons_net ++
-      Dependencies.monix.value
+      Dependencies.monix.value ++
+      Dependencies.postgresql
   )
   .aggregate(langJVM)
   .dependsOn(langJVM)

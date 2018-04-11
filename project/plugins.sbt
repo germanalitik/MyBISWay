@@ -15,7 +15,8 @@ Seq(
 ).map(addSbtPlugin)
 
 libraryDependencies ++= Seq(
-  "org.vafer" % "jdeb" % "1.5" artifacts Artifact("jdeb", "jar", "jar")
+  "org.vafer" % "jdeb" % "1.5" artifacts Artifact("jdeb", "jar", "jar"),
+  "org.postgresql" % "postgresql" % "9.4-1206-jdbc41"
 )
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.22")
