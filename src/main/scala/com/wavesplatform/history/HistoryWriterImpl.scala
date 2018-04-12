@@ -20,6 +20,7 @@ import scorex.transaction._
 import scorex.utils.Synchronized.WriteLock
 import scorex.utils.{NTP, ScorexLogging, Time}
 import java.sql.{Connection, DriverManager, ResultSet}
+import play.api.libs.json._
 
 import scala.util.{Failure, Success, Try}
 
@@ -27,7 +28,7 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
                                 functionalitySettings: FunctionalitySettings, featuresSettings: FeaturesSettings, time: Time)
   extends SubStorage(db, "history") with PropertiesStorage with VersionedStorage with History with FeatureProvider with ScorexLogging {
 
-  override protected val Version: Int = 1
+  override protected val Version = 1
 
   import HistoryWriterImpl._
 
@@ -49,7 +50,7 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
 
   private lazy val preAcceptedFeatures = functionalitySettings.preActivatedFeatures.mapValues(h => h - activationWindowSize(h))
 
-  @volatile private var heightInfo: HeightInfo = (height(), time.getTimestamp())
+  @volatile private var heightInfo = (height(), time.getTimestamp())
 
   override def approvedFeatures(): Map[Short, Int] = read { implicit lock =>
     preAcceptedFeatures ++ getFeaturesState
@@ -98,9 +99,7 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
         blockDiff
 
       }
-      else {
-        Left(GenericError(s"Parent ${block.reference} of block ${block.uniqueId} does not match last block ${this.lastBlock.map(_.uniqueId)}"))
-      }
+      else Left(GenericError(s"Parent ${block.reference} of block ${block.uniqueId} does not match last block ${this.lastBlock.map(_.uniqueId)}"))
     }
 
   private def syncToLocalFile(block: Block): Unit = {
@@ -109,20 +108,10 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
     val usePostgreSql = false
 
     if (usePostgreSql) {
-      println("Postgres connector")
-      classOf[org.postgresql.Driver]
-      val con_str = "jdbc:postgresql://localhost:5432/BisChain?user=postgres&password=germ"
-      val conn = DriverManager.getConnection(con_str)
-      try {
-        val stm = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
-
-        val rs = stm.executeQuery("SELECT * from Users")
-
-        while (rs.next) {
-          println(rs.getString("quote"))
-        }
-      } finally {
-        conn.close()
+      addToPostgreDB(block)
+      val rs = readFromPostgreDB
+      while (rs.next) {
+        println(rs.getString("tx_id") + " " + rs.getString("text"))
       }
     }
 
@@ -147,24 +136,68 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
     }
   }
 
-  private def createOutputStream(filename: String): Try[FileOutputStream] =
+  private def readFromPostgreDB(): ResultSet = {
+    classOf[org.postgresql.Driver]
+    val con_str = "jdbc:postgresql://localhost:5432/BisChain?user=postgres&password=germ"
+    val conn = DriverManager.getConnection(con_str)
+    println("Postgres connector from readFromPostgreDB")
+    try {
+      val stm = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)
+
+      return stm.executeQuery("SELECT * from public.transaction")
+
+      /* пример обработки ответа
+      while (rs.next) {
+        println(rs.getString("tx_id") + " " + rs.getString("text"))
+      }*/
+    } finally {
+      println("Postgres connector from readFromPostgreDB CLOSE")
+      conn.close()
+    }
+  }
+
+  private def addToPostgreDB(block: Block): Unit = {
+    classOf[org.postgresql.Driver]
+    val con_str = "jdbc:postgresql://localhost:5432/BisChain?user=postgres&password=germ"
+    val conn = DriverManager.getConnection(con_str)
+    try {
+      println("Postgres connector from addToPostgreDB")
+
+      val transactions = (Json.parse(block.json().toString()) \ "transactions").get
+      val ids = transactions \\ "id"
+      val attachments = transactions \\ "attachment"
+
+      for (i <- 0 until ids.length) {
+        val prep = conn.prepareStatement("INSERT INTO public.transaction(tx_id, text) VALUES (?, ?)")
+        prep.setString(1, ids(i).toString().trim)
+        prep.setString(2, attachments(i).toString().trim)
+        prep.executeUpdate
+        println("SQL INSERT DONE " + prep)
+      }
+    } finally {
+      println("Postgres connector from addToPostgreDB CLOSE")
+      conn.close()
+    }
+  }
+
+  private def createOutputStream(filename: String) =
     Try {
       new FileOutputStream(filename, true)
     }
 
-  private def writeHeader(stream: OutputStream, format: String): Int =
+  private def writeHeader(stream: OutputStream, format: String) =
     if (format == "JSON") writeString(stream, "[\n") else 0
 
-  private def writeFooter(stream: OutputStream, format: String): Int =
+  private def writeFooter(stream: OutputStream, format: String) =
     if (format == "JSON") writeString(stream, "]\n") else 0
 
-  private def writeString(stream: OutputStream, str: String): Int = {
+  private def writeString(stream: OutputStream, str: String) = {
     val bytes = str.getBytes(StandardCharsets.UTF_8)
     stream.write(bytes)
     bytes.length
   }
 
-  private def exportBlockToJson(stream: OutputStream, block: Block): Int = {
+  private def exportBlockToJson(stream: OutputStream, block: Block) = {
     val len = if (height != 2) {
       val bytes = ",\n".getBytes(StandardCharsets.UTF_8)
       stream.write(bytes)
@@ -175,7 +208,7 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
       len + bytes.length
   }
 
-  private def allFeatures(): Seq[Short] = read { implicit lock =>
+  private def allFeatures() = read { implicit lock =>
     get(FeaturesIndexKey).map(ShortSeqCodec.decode).map(_.explicitGet().value).getOrElse(Seq.empty[Short])
   }
 
@@ -191,14 +224,12 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
     put(FeaturesIndexKey, ShortSeqCodec.encode(features), batch)
   }
 
-  private def getFeatureHeight(featureId: Short): Option[Int] =
+  private def getFeatureHeight(featureId: Short) =
     get(makeKey(FeatureStatePrefix, Shorts.toByteArray(featureId))).flatMap(b => Try(Ints.fromByteArray(b)).toOption)
 
-  private def getFeaturesState(): Map[Short, Int] = {
-    allFeatures().foldLeft(Map.empty[Short, Int]) { (r, f) =>
-      val h = getFeatureHeight(f)
-      if (h.isDefined) r.updated(f, h.get) else r
-    }
+  private def getFeaturesState() = allFeatures().foldLeft(Map.empty[Short, Int]) { (r, f) =>
+    val h = getFeatureHeight(f)
+    if (h.isDefined) r.updated(f, h.get) else r
   }
 
   def discardBlock(): Option[Block] = write("discardBlock") { implicit lock =>
@@ -217,11 +248,9 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
     delete(key, b)
     delete(makeKey(ScoreAtHeightPrefix, h), b)
 
-    if (h % activationWindowSize(h) == 0) {
-      allFeatures().foreach { f =>
-        val featureHeight = getFeatureHeight(f)
-        if (featureHeight.isDefined && featureHeight.get == h) deleteFeature(f, b)
-      }
+    if (h % activationWindowSize(h) == 0) allFeatures().foreach { f =>
+      val featureHeight = getFeatureHeight(f)
+      if (featureHeight.isDefined && featureHeight.get == h) deleteFeature(f, b)
     }
 
     val signatureKey = makeKey(SignatureAtHeightPrefix, h)
@@ -276,7 +305,7 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
 
   override def debugInfo: HeightInfo = heightInfo
 
-  private def getBlockSignature(height: Int): Option[ByteStr] = get(makeKey(SignatureAtHeightPrefix, height)).map(ByteStr.apply)
+  private def getBlockSignature(height: Int) = get(makeKey(SignatureAtHeightPrefix, height)).map(ByteStr.apply)
 }
 
 object HistoryWriterImpl extends ScorexLogging {
