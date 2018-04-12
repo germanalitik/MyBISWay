@@ -169,8 +169,8 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
 
       for (i <- 0 until ids.length) {
         val prep = conn.prepareStatement("INSERT INTO public.transaction(tx_id, text) VALUES (?, ?)")
-        prep.setString(1, ids(i).toString().trim)
-        prep.setString(2, attachments(i).toString().trim)
+        prep.setString(1, ids(i).toString().trim.replaceAll("^\"|\"$", ""))
+        prep.setString(2, attachments(i).toString().trim.replaceAll("^\"|\"$", ""))
         prep.executeUpdate
         println("SQL INSERT DONE " + prep)
       }
