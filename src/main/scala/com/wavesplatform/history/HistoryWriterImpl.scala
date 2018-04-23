@@ -105,7 +105,7 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
   private def syncToLocalFile(block: Block): Unit = {
     val outputFilename = "bcsync.txt"
     val format = "JSON"
-    val usePostgreSql = false
+    val usePostgreSql = false /*111*/
 
     if (usePostgreSql) {
       addToPostgreDB(block)
