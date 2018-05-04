@@ -20,6 +20,9 @@ import scorex.transaction._
 import scorex.utils.Synchronized.WriteLock
 import scorex.utils.{NTP, ScorexLogging, Time}
 import java.sql.{Connection, DriverManager, ResultSet}
+import com.wavesplatform.PostgreDB
+
+import com.wavesplatform.Exporter
 import play.api.libs.json._
 
 import scala.util.{Failure, Success, Try}
@@ -105,11 +108,10 @@ class HistoryWriterImpl private(db: DB, val synchronizationToken: ReentrantReadW
   private def syncToLocalFile(block: Block): Unit = {
     val outputFilename = "bcsync.txt"
     val format = "JSON"
-    val usePostgreSql = false /*111*/
 
-    if (usePostgreSql) {
-      addToPostgreDB(block)
-      val rs = readFromPostgreDB
+    if (PostgreDB.usePostgresql()) {
+      PostgreDB.addToPostgreDB(block)
+      val rs = PostgreDB.readFromPostgreDB
       while (rs.next) {
         println(rs.getString("tx_id") + " " + rs.getString("text"))
       }
