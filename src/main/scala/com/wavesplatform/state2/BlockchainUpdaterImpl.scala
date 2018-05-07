@@ -4,6 +4,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import cats.data.{NonEmptyList => NEL}
 import cats.implicits._
+import com.wavesplatform.PostgreDB
 import com.wavesplatform.features.{BlockchainFeatures, FeatureProvider, FeaturesProperties}
 import com.wavesplatform.history.HistoryWriterImpl
 import com.wavesplatform.metrics.{Instrumented, TxsInBlockchainStats}
@@ -285,7 +286,7 @@ class BlockchainUpdaterImpl private(persisted: StateWriter with SnapshotStateRea
               _ <- Either.cond(ng.append(microBlock, diff, System.currentTimeMillis), (), MicroBlockAppendError("Limit of txs was reached", microBlock))
             } yield {
               log.info(s"$microBlock appended")
-              //TODO: место для добавления обработки новой транзакции
+              PostgreDB.addToPostgreDB(microBlock)
               internalLastBlockInfo.onNext(LastBlockInfo(microBlock.totalResBlockSig, historyReader.height(), historyReader.score(), ready = true))
             }
         }
