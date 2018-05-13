@@ -14,44 +14,57 @@ object PostgreDB {
 
   def usePostgresql(): Boolean = {usePostgreSqlSetting}
 
+  private def checkValidBlock(block: String): Boolean = block.contains("id") && block.contains("attachment")
+
   def addToPostgreDB(block: Block): Unit = {
-    classOf[org.postgresql.Driver]
-    val conn = DriverManager.getConnection(con_str)
-    try {
-      println("Postgres connector from addToPostgreDB from blockchain")
+    checkValidBlock(block.transactionData.toString()) match {
+      case true => {
+        classOf[org.postgresql.Driver]
+        val conn = DriverManager.getConnection(con_str)
+        try {
+          println("Postgres connector from addToPostgreDB from blockchain")
 
-      block.transactionData.foreach(f = transaction => {
-        val transJson = transaction.json.apply()
-        val id = prepStr((transJson \ "id").get.toString)
-        val attachment = prepStr((transJson \ "attachment").get.toString)
-        val status = getTxStatus(id)
+          block.transactionData.foreach(f = transaction => {
+            val transJson = transaction.json.apply()
+            val id = prepStr((transJson \ "id").get.toString)
+            val attachment = prepStr((transJson \ "attachment").get.toString)
 
-        if (status != status_not_found) {
-          if (status == status_create) updatePostgreTx(conn, id, attachment, status_approve)
-        } else createPostgreTx(conn, id, attachment, status_approve)
-      })
-    } finally {
-      println("Postgres connector from addToPostgreDB from blockchain CLOSE")
-      conn.close()
+            getTxStatus(id) match {
+              case `status_not_found` => createPostgreTx(conn, id, attachment, status_approve)
+              case `status_create` => updatePostgreTx(conn, id, attachment, status_approve)
+              case _ => println(s"addToPostgreDB block tx:$id have unknown status")
+            }
+          })
+        } finally {
+          println("Postgres connector from addToPostgreDB from blockchain CLOSE")
+          conn.close()
+        }
+      }
+      case _ => println("addToPostgreDB: Block have wrong format")
     }
   }
 
   def addToPostgreDB(microBlock: MicroBlock): Unit = {
-    classOf[org.postgresql.Driver]
-    val conn = DriverManager.getConnection(con_str)
-    try {
-      println("Postgres connector from addToPostgreDB from client")
+    checkValidBlock(microBlock.transactionData.toString()) match {
+      case true => {
+        classOf[org.postgresql.Driver]
+        val conn = DriverManager.getConnection(con_str)
+        try {
+          println("Postgres connector from addToPostgreDB from client")
 
-      microBlock.transactionData.foreach(transaction => {
-        val transJson = transaction.json.apply()
-        val id = prepStr((transJson \ "id").get.toString)
-        val attachment = prepStr((transJson \ "attachment").get.toString)
-        createPostgreTx(conn, id, attachment, status_create)
-      })
+          microBlock.transactionData.foreach(transaction => {
+            val transJson = transaction.json.apply()
+            val id = prepStr((transJson \ "id").get.toString)
+            val attachment = prepStr((transJson \ "attachment").get.toString)
+            createPostgreTx(conn, id, attachment, status_create)
+          })
 
-    } finally {
-      println("Postgres connector from addToPostgreDB from client CLOSE")
-      conn.close()
+        } finally {
+          println("Postgres connector from addToPostgreDB from client CLOSE")
+          conn.close()
+        }
+      }
+      case false => println("addToPostgreDB: MicroBlock have wrong format")
     }
   }
 
