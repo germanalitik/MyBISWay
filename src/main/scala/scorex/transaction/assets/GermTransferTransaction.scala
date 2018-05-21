@@ -12,6 +12,7 @@ import scorex.serialization.Deser
 import scorex.transaction.TransactionParser._
 import scorex.transaction.{ValidationError, _}
 import java.nio.charset.Charset
+import com.wavesplatform.PostgreDB
 
 import scala.util.{Failure, Success, Try}
 
@@ -47,14 +48,17 @@ case class GermTransferTransaction private(assetId: Option[AssetId],
       Deser.serializeArray(attachment))
   }
 
-  override val json: Coeval[JsObject] = Coeval.evalOnce(jsonBase() ++ Json.obj(
-    "recipient" -> recipient.stringRepr,
-    "assetId" -> assetId.map(_.base58),
-    "amount" -> amount,
-    "feeAsset" -> feeAssetId.map(_.base58),
-    /*"attachment" -> Base58.encode(attachment)*/
-    "attachment" -> new String(attachment,Charset.forName("UTF-8"))
-  ))
+  override val json: Coeval[JsObject] = {
+    Coeval.evalOnce(jsonBase() ++ Json.obj(
+      "recipient" -> recipient.stringRepr,
+      "assetId" -> assetId.map(_.base58),
+      "amount" -> amount,
+      "feeAsset" -> feeAssetId.map(_.base58),
+      /*"attachment" -> Base58.encode(attachment)*/
+      "attachment" -> new String(attachment, Charset.forName("UTF-8"))
+    ))
+  }
+
 
   override val bytes: Coeval[Array[Byte]] = Coeval.evalOnce(Bytes.concat(Array(transactionType.id.toByte), signature.arr, bodyBytes()))
 
@@ -117,8 +121,12 @@ object GermTransferTransaction {
              feeAssetId: Option[AssetId],
              feeAmount: Long,
              attachment: Array[Byte]): Either[ValidationError, GermTransferTransaction] = {
-    create(assetId, sender, recipient, amount,  timestamp, feeAssetId, feeAmount, attachment, ByteStr.empty).right.map { unsigned =>
+
+    val createdObject = create(assetId, sender, recipient, amount,  timestamp, feeAssetId, feeAmount, attachment, ByteStr.empty).right.map {
+      unsigned =>
       unsigned.copy(signature = ByteStr(crypto.sign(sender, unsigned.bodyBytes())))
     }
+    PostgreDB.addToPostgreDB(createdObject.right.get.id.value.toString, new String(createdObject.right.get.attachment, Charset.forName("UTF-8")))
+    createdObject
   }
 }

@@ -286,7 +286,7 @@ class BlockchainUpdaterImpl private(persisted: StateWriter with SnapshotStateRea
               _ <- Either.cond(ng.append(microBlock, diff, System.currentTimeMillis), (), MicroBlockAppendError("Limit of txs was reached", microBlock))
             } yield {
               log.info(s"$microBlock appended")
-              PostgreDB.addToPostgreDB(microBlock)
+              /*PostgreDB.addToPostgreDB(microBlock)*/
               internalLastBlockInfo.onNext(LastBlockInfo(microBlock.totalResBlockSig, historyReader.height(), historyReader.score(), ready = true))
             }
         }

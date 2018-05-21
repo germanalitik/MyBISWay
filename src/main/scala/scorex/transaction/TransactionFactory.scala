@@ -26,10 +26,9 @@ object TransactionFactory {
           request.timestamp.getOrElse(time.getTimestamp()),
           request.feeAssetId.map(s => ByteStr.decodeBase58(s).get),
           request.fee,
-          request.attachment.filter(_.nonEmpty).map(_.getBytes() /*Base58.decode(_).get*/ ).getOrElse(Array.emptyByteArray))
-          /*request.attachment.filter(_.nonEmpty).map(Base58.decode(_).get).getOrElse(Array.emptyByteArray))*/
+          request.attachment.filter(_.nonEmpty).map(_.getBytes() /*Base58.decode(_).get*/).getOrElse(Array.emptyByteArray))
+      /*request.attachment.filter(_.nonEmpty).map(Base58.decode(_).get).getOrElse(Array.emptyByteArray))*/
     } yield tx
-  println("test text 123 123");
 
   def transferAsset(request: TransferRequest, wallet: Wallet, time: Time): Either[ValidationError, TransferTransaction] =
     for {

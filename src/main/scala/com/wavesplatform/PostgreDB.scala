@@ -68,7 +68,19 @@ object PostgreDB {
     }
   }
 
-   def readFromPostgreDB(): ResultSet = {
+  def addToPostgreDB(id:String, attachment:String): Unit = {
+    classOf[org.postgresql.Driver]
+    val conn = DriverManager.getConnection(con_str)
+    try {
+      println("Postgres connector from addToPostgreDB from client 2")
+      createPostgreTx(conn, id, attachment, status_create)
+    } finally {
+      println("Postgres connector from addToPostgreDB from client 2 CLOSE")
+      conn.close()
+    }
+  }
+
+  def readFromPostgreDB(): ResultSet = {
     classOf[org.postgresql.Driver]
     val conn = DriverManager.getConnection(con_str)
     println("Postgres connector from readFromPostgreDB")
@@ -106,7 +118,7 @@ object PostgreDB {
   }
 
   private def prepStr (str: String): String = {
-     str.trim.replaceAll("^\"|\"$", "")
+    str.trim.replaceAll("^\"|\"$", "")
   }
 
   private def createPostgreTx (conn: Connection, id:String, attachment:String, status:String): Unit = {
