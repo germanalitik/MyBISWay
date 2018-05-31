@@ -25,6 +25,8 @@ import scorex.wallet.Wallet
 import scala.util.Success
 import scala.util.control.Exception
 
+import com.wavesplatform.PostgreDB
+
 @Path("/transactions")
 @Api(value = "/transactions", description = "Information about transactions")
 case class TransactionsApiRoute(
@@ -40,10 +42,16 @@ case class TransactionsApiRoute(
 
   override lazy val route =
     pathPrefix("transactions") {
-      unconfirmed ~ addressLimit ~ info ~ sign ~ broadcast
+      unconfirmed ~ addressLimit ~ info ~ sign ~ broadcast ~ postgreSql_Tx
     }
 
   private val invalidLimit = StatusCodes.BadRequest -> Json.obj("message" -> "invalid.limit")
+
+  @Path("/postgreSql_Tx")
+  @ApiOperation(value = "PostgreSQL_TX_Info", notes = "Get PostgreSQL_TX transaction info", httpMethod = "GET")
+  def postgreSql_Tx: Route = (pathPrefix("postgreSql_Tx") & get) {
+    complete(Json.obj("transactions" -> PostgreDB.getFieldsAsJson(PostgreDB.readFromPostgreDB())))
+  }
 
   //TODO implement general pagination
   @Path("/address/{address}/limit/{limit}")

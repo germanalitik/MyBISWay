@@ -1,6 +1,9 @@
 package com.wavesplatform
 
 import java.sql.{Connection, DriverManager, ResultSet}
+
+import play.api.libs.json.Json
+import play.api.libs.json._
 import scorex.block.{Block, MicroBlock}
 
 object PostgreDB {
@@ -97,6 +100,20 @@ object PostgreDB {
       println("Postgres connector from readFromPostgreDB CLOSE")
       conn.close()
     }
+  }
+
+  def getFieldsAsJson(res:ResultSet): Seq[Map[String, String]] = {
+    var resArray = Seq[Map[String, String]]()
+
+    while (res.next) {
+      var txs = Map[String, String]()
+      for(i <- 1 to res.getMetaData.getColumnCount) {
+        txs = txs.updated(res.getMetaData.getColumnName(i),prepStr(res.getString(i)))
+      }
+      resArray = resArray :+ txs
+    }
+
+    resArray
   }
 
   def getTxStatus(tx_id: String): String = {
